@@ -2,86 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class BodyData : MonoBehaviour
+public class BodyData
 {
-    // hips moved up
-    public static BVHElem jointSpec = new BVHElem("Hips", new Vector3(0, 35f, 0), new List<BVHElem>
-    {
-        new BVHElem("LeftUpLeg", new Vector3(3.64953f, 0, 0), new List<BVHElem>
-        {
-            new BVHElem("LeftLeg", new Vector3(0, -15.70580f, 0), new List<BVHElem>
-            {
-                new BVHElem("LeftFoot", new Vector3(0, -15.41867f, 0), new List<BVHElem>
-                {
-                    new BVHElem("LeftToeBase", new Vector3(0, -1.53543f, 5.73033f), new List<BVHElem>
-                    {
-                        new BVHElem("EndSite", new Vector3(0, 0, 2.95275f), new List<BVHElem>(), false)
-                    })
-                })
-            })
-        }),
-        new BVHElem("RightUpLeg", new Vector3(-3.64953f, 0, 0), new List<BVHElem>
-        {
-            new BVHElem("RightLeg", new Vector3(0, -15.70580f, 0), new List<BVHElem>
-            {
-                new BVHElem("RightFoot", new Vector3(0, -15.41867f, 0), new List<BVHElem>
-                {
-                    new BVHElem("RightToeBase", new Vector3(0, -1.53543f, 5.73033f), new List<BVHElem>
-                    {
-                        new BVHElem("EndSite", new Vector3(0, 0, 2.95275f), new List<BVHElem>(), false)
-                    })
-                })
-            })
-        }),
-        new BVHElem("Spine", new Vector3(0, 0.03937f, 0), new List<BVHElem>
-        {
-            new BVHElem("Spine1", new Vector3(0, 10.24829f, 0), new List<BVHElem>
-            {
-                new BVHElem("Neck", new Vector3(0, 7.82687f, 0), new List<BVHElem>
-                {
-                    new BVHElem("Head", new Vector3(0, 6.90715f, 0), new List<BVHElem>
-                    {
-                        new BVHElem("EndSite", new Vector3(0, 4.52755f, 0), new List<BVHElem>(), false)
-                    })
-                }),
-                new BVHElem("LeftShoulder", new Vector3(0, 7.82687f, 0), new List<BVHElem>
-                {
-                    new BVHElem("LeftArm", new Vector3(6.71018f, -0.00002f, 0), new List<BVHElem>
-                    {
-                        new BVHElem("LeftForeArm", new Vector3(10.94419f, -0.00004f, 0), new List<BVHElem>
-                        {
-                            new BVHElem("LeftHand", new Vector3(8.52010f, -0.00003f, 0), new List<BVHElem>
-                            {
-                                new BVHElem("LeftHandThumb", new Vector3(0, 0, 0), new List<BVHElem>
-                                {
-                                    new BVHElem("EndSite", new Vector3(0, 0, 3.93700f), new List<BVHElem>(), false)
-                                }),
-                                new BVHElem("L_Wrist_End", new Vector3(3.93700f, -0.00001f, 0), new List<BVHElem>())
-                            })
-                        })
-                    })
-                }),
-                new BVHElem("RightShoulder", new Vector3(0, 7.82687f, 0), new List<BVHElem>
-                {
-                    new BVHElem("RightArm", new Vector3(-6.71018f, -0.00002f, 0), new List<BVHElem>
-                    {
-                        new BVHElem("RightForeArm", new Vector3(-10.94419f, -0.00004f, 0), new List<BVHElem>
-                        {
-                            new BVHElem("RightHand", new Vector3(-8.52010f, -0.00003f, 0), new List<BVHElem>
-                            {
-                                new BVHElem("RightHandThumb", new Vector3(0, 0, 0), new List<BVHElem>
-                                {
-                                    new BVHElem("EndSite", new Vector3(0, 0, 3.93700f), new List<BVHElem>(), false)
-                                }),
-                                new BVHElem("R_Wrist_End", new Vector3(-5.39369f, -0.00002f, 0), new List<BVHElem>())
-                            })
-                        })
-                    })
-                })
-            })
-        })
-    });
-
     public static Dictionary<string, List<PrimitiveSpec>> bodySpec = new Dictionary<string, List<PrimitiveSpec>>
     {
         {
@@ -231,22 +153,6 @@ public class BodyData : MonoBehaviour
     };
 }
 
-public class BVHElem
-{
-    public string Name { get; set; }
-    public Vector3 Offset { get; set; }
-    public List<BVHElem> Children { get; set; }
-    public bool IsJoint { get; set; }
-
-    public BVHElem(string name, Vector3 offset, List<BVHElem> children, bool isJoint = true)
-    {
-        Name = name;
-        Offset = offset;
-        Children = children;
-        IsJoint = isJoint;
-    }
-}
-
 public class PrimitiveSpec
 {
     public PrimitiveType Type { get; set; }
@@ -260,21 +166,5 @@ public class PrimitiveSpec
         Position = position;
         Rotation = rotation;
         Scale = scale;
-    }
-}
-
-public class BodyJoint
-{
-    public GameObject GameObject { get; set; }
-    public Vector3 Offset { get; set; }
-
-    public int LastFrame { get; set; }
-    public Vector3 LastFramePosition { get; set; }
-    public Quaternion LastFrameRotation { get; set; }
-
-    public BodyJoint(GameObject gameObject, Vector3 offset)
-    {
-        GameObject = gameObject;
-        Offset = offset;
     }
 }

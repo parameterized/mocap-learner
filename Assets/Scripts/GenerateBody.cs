@@ -4,78 +4,123 @@ using UnityEngine;
 
 public class GenerateBody : MonoBehaviour
 {
+    private BVHData bvhData;
     private List<BodyJoint> joints = new List<BodyJoint>();
 
     private void Start()
     {
-        Generate(transform, BodyData.jointSpec);
-
-        GameObject reference = new GameObject();
-        reference.name = "BodyRef";
-        reference.transform.localPosition = Vector3.zero;
-        Generate(reference.transform, BodyData.jointSpec, false);
+        bvhData = new BVHParser().Parse("Assets/Mocap/0005_Walking001.bvh");
+        // move hips up
+        bvhData.Skeletons[0].Offset = new Vector3(0, 35f, 0);
+        Generate(transform, bvhData.Skeletons[0]);
     }
 
     private void Update()
     {
         if (Time.time % 2 < 1)
         {
-            int frame = (int)(Time.time / WalkData.frameTime) % WalkData.frames;
-            for (int i = 0; i < joints.Count; i++)
+            int frameA = Mathf.FloorToInt((Time.time / bvhData.FrameTime) % (bvhData.Frames.Count - 1));
+            int frameB = Mathf.CeilToInt((Time.time / bvhData.FrameTime) % (bvhData.Frames.Count - 1));
+            float frameT = (Time.time / bvhData.FrameTime) % 1;
+            int channelIdx = 0;
+            foreach (BodyJoint joint in joints)
             {
-                if (i == 0)
+                Vector3 pA = Vector3.zero;
+                Vector3 pB = Vector3.zero;
+                bool setPosition = false;
+                Quaternion qA = Quaternion.identity;
+                Quaternion qB = Quaternion.identity;
+                bool setRotation = false;
+                foreach (string channel in joint.BVHElement.Channels)
                 {
-                    Vector3 p = new Vector3((float)WalkData.data[frame, 0], (float)WalkData.data[frame, 1], (float)WalkData.data[frame, 2]);
-                    joints[i].GameObject.transform.localPosition = p / 10f;
-                } else
-                {
-                    joints[i].GameObject.transform.localPosition = joints[i].Offset / 10f;
+                    float channelValA = bvhData.Frames[frameA][channelIdx];
+                    float channelValB = bvhData.Frames[frameB][channelIdx];
+                    switch (channel)
+                    {
+                        case "Xposition":
+                            pA.x = channelValA;
+                            pB.x = channelValB;
+                            setPosition = true;
+                            break;
+                        case "Yposition":
+                            pA.y = channelValA;
+                            pB.y = channelValB;
+                            setPosition = true;
+                            break;
+                        case "Zposition":
+                            pA.z = channelValA;
+                            pB.z = channelValB;
+                            setPosition = true;
+                            break;
+                        case "Xrotation":
+                            qA *= Quaternion.AngleAxis(channelValA, Vector3.right);
+                            qB *= Quaternion.AngleAxis(channelValB, Vector3.right);
+                            setRotation = true;
+                            break;
+                        case "Yrotation":
+                            qA *= Quaternion.AngleAxis(channelValA, Vector3.up);
+                            qB *= Quaternion.AngleAxis(channelValB, Vector3.up);
+                            setRotation = true;
+                            break;
+                        case "Zrotation":
+                            qA *= Quaternion.AngleAxis(channelValA, Vector3.forward);
+                            qB *= Quaternion.AngleAxis(channelValB, Vector3.forward);
+                            setRotation = true;
+                            break;
+                        default:
+                            Debug.LogWarning("Channel \"" + channel + "\" not recognized");
+                            break;
+                    }
+                    channelIdx += 1;
                 }
-                Vector3 r = new Vector3((float)WalkData.data[frame, i * 3 + 3], (float)WalkData.data[frame, i * 3 + 4], (float)WalkData.data[frame, i * 3 + 5]);
-                // euler -> quaternion in xyz order
-                Quaternion q = Quaternion.AngleAxis(r.x, Vector3.right) * Quaternion.AngleAxis(r.y, Vector3.up) * Quaternion.AngleAxis(r.z, Vector3.forward);
-                joints[i].GameObject.transform.localRotation = q;
+                if (setPosition)
+                {
+                    joint.GameObject.transform.localPosition = Vector3.Lerp(pA, pB, frameT) / 10f;
+                }
+                else
+                {
+                    joint.GameObject.transform.localPosition = joint.BVHElement.Offset / 10f;
+                }
+                if (setRotation)
+                {
+                    joint.GameObject.transform.localRotation = Quaternion.Lerp(qA, qB, frameT);
+                }
 
-                Rigidbody rb = joints[i].GameObject.GetComponent<Rigidbody>();
-                if (frame == 0)
+
+                Rigidbody rb = joint.GameObject.GetComponent<Rigidbody>();
+                rb.velocity = (joint.GameObject.transform.position - joint.LastFramePosition) / Time.deltaTime;
+
+                Quaternion deltaRotation = joint.GameObject.transform.rotation * Quaternion.Inverse(joint.LastFrameRotation);
+                deltaRotation.ToAngleAxis(out float angle, out Vector3 axis);
+                angle *= Mathf.Deg2Rad;
+                Vector3 angularVelocity = axis * angle / Time.deltaTime;
+                if (float.IsInfinity(angularVelocity.x) || float.IsInfinity(angularVelocity.y) || float.IsInfinity(angularVelocity.z))
                 {
-                    rb.velocity = Vector3.zero;
-                    rb.angularVelocity = Vector3.zero;
-                } else
-                {
-                    // inaccurate (framerate & animation not synced) - interpolate animation and divide by unity frame time?
-                    rb.velocity = (joints[i].GameObject.transform.position - joints[i].LastFramePosition) / WalkData.frameTime;
-                    // relative rotation
-                    Quaternion vq = Quaternion.Inverse(joints[i].GameObject.transform.rotation) * joints[i].LastFrameRotation;
-                    rb.angularVelocity = vq.eulerAngles / WalkData.frameTime;
+                    angularVelocity = Vector3.zero;
                 }
-                if (joints[i].LastFrame != frame)
-                {
-                    joints[i].LastFrame = frame;
-                    joints[i].LastFramePosition = joints[i].GameObject.transform.position;
-                    joints[i].LastFrameRotation = joints[i].GameObject.transform.rotation;
-                }
+                rb.angularVelocity = angularVelocity;
+
+                joint.LastFramePosition = joint.GameObject.transform.position;
+                joint.LastFrameRotation = joint.GameObject.transform.rotation;
             }
         }
     }
 
-    private void Generate(Transform parent, BVHElem bvh, bool addToJoints = true)
+    private void Generate(Transform parent, BVHElement bvh, bool addToJoints = true)
     {
         GameObject joint = new GameObject();
         joint.name = bvh.Name;
         joint.transform.parent = parent;
         joint.transform.localPosition = bvh.Offset / 10f;
-        if (addToJoints && bvh.IsJoint) { joints.Add(new BodyJoint(joint, bvh.Offset)); }
+        if (addToJoints && bvh.Type != "End Site")
+        {
+            BodyJoint bodyJoint = new BodyJoint(joint, bvh);
+            bodyJoint.LastFramePosition = joint.transform.position;
+            bodyJoint.LastFrameRotation = joint.transform.rotation;
+            joints.Add(bodyJoint);
+        }
         joint.AddComponent<Rigidbody>();
         joint.GetComponent<Rigidbody>().useGravity = false;
-
-        /*
-        GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        marker.name = "JointMarker";
-        marker.transform.parent = joint.transform;
-        marker.transform.localPosition = Vector3.zero;
-        marker.transform.localScale = Vector3.one * 0.2f;
-        */
 
         if (BodyData.bodySpec.ContainsKey(bvh.Name))
         {
@@ -94,5 +139,20 @@ public class GenerateBody : MonoBehaviour
         {
             Generate(joint.transform, child, addToJoints);
         }
+    }
+}
+
+public class BodyJoint
+{
+    public GameObject GameObject { get; set; }
+    public BVHElement BVHElement { get; set; }
+
+    public Vector3 LastFramePosition { get; set; }
+    public Quaternion LastFrameRotation { get; set; }
+
+    public BodyJoint(GameObject gameObject, BVHElement bvhElement)
+    {
+        GameObject = gameObject;
+        BVHElement = bvhElement;
     }
 }
