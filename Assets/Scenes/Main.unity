@@ -333,6 +333,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 86a0c2d9391a2d345a23a3c4910c6114, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  BVHFilePath: Assets/Mocap/0005_Walking001.bvh
 --- !u!4 &762437321
 Transform:
   m_ObjectHideFlags: 0

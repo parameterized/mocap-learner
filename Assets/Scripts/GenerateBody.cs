@@ -4,15 +4,24 @@ using UnityEngine;
 
 public class GenerateBody : MonoBehaviour
 {
+    public string BVHFilePath = "Assets/Mocap/0005_Walking001.bvh";
+
     private BVHData bvhData;
+    private BodyData bodyData;
     private List<BodyJoint> joints = new List<BodyJoint>();
 
     private void Start()
     {
-        bvhData = new BVHParser().Parse("Assets/Mocap/0005_Walking001.bvh");
+        LoadBody();
+        GenerateElement(transform, bvhData.Skeletons[0]);
+    }
+
+    private void LoadBody()
+    {
+        bvhData = new BVHParser().Parse(BVHFilePath);
         // move hips up
         bvhData.Skeletons[0].Offset = new Vector3(0, 35f, 0);
-        Generate(transform, bvhData.Skeletons[0]);
+        bodyData = new BodyData();
     }
 
     private void Update()
@@ -88,17 +97,20 @@ public class GenerateBody : MonoBehaviour
 
 
                 Rigidbody rb = joint.GameObject.GetComponent<Rigidbody>();
-                rb.velocity = (joint.GameObject.transform.position - joint.LastFramePosition) / Time.deltaTime;
-
-                Quaternion deltaRotation = joint.GameObject.transform.rotation * Quaternion.Inverse(joint.LastFrameRotation);
-                deltaRotation.ToAngleAxis(out float angle, out Vector3 axis);
-                angle *= Mathf.Deg2Rad;
-                Vector3 angularVelocity = axis * angle / Time.deltaTime;
-                if (float.IsInfinity(angularVelocity.x) || float.IsInfinity(angularVelocity.y) || float.IsInfinity(angularVelocity.z))
+                if (rb)
                 {
-                    angularVelocity = Vector3.zero;
+                    rb.velocity = (joint.GameObject.transform.position - joint.LastFramePosition) / Time.deltaTime;
+
+                    Quaternion deltaRotation = joint.GameObject.transform.rotation * Quaternion.Inverse(joint.LastFrameRotation);
+                    deltaRotation.ToAngleAxis(out float angle, out Vector3 axis);
+                    angle *= Mathf.Deg2Rad;
+                    Vector3 angularVelocity = axis * angle / Time.deltaTime;
+                    if (float.IsInfinity(angularVelocity.x) || float.IsInfinity(angularVelocity.y) || float.IsInfinity(angularVelocity.z))
+                    {
+                        angularVelocity = Vector3.zero;
+                    }
+                    rb.angularVelocity = angularVelocity;
                 }
-                rb.angularVelocity = angularVelocity;
 
                 joint.LastFramePosition = joint.GameObject.transform.position;
                 joint.LastFrameRotation = joint.GameObject.transform.rotation;
@@ -106,7 +118,15 @@ public class GenerateBody : MonoBehaviour
         }
     }
 
-    private void Generate(Transform parent, BVHElement bvh, bool addToJoints = true)
+    public void GenerateTestBody()
+    {
+        LoadBody();
+        GameObject testBody = new GameObject();
+        testBody.name = "Test Body";
+        GenerateElement(testBody.transform, bvhData.Skeletons[0]);
+    }
+
+    private void GenerateElement(Transform parent, BVHElement bvh, bool addToJoints = true)
     {
         GameObject joint = new GameObject();
         joint.name = bvh.Name;
@@ -119,12 +139,13 @@ public class GenerateBody : MonoBehaviour
             bodyJoint.LastFrameRotation = joint.transform.rotation;
             joints.Add(bodyJoint);
         }
-        joint.AddComponent<Rigidbody>();
-        joint.GetComponent<Rigidbody>().useGravity = false;
 
-        if (BodyData.bodySpec.ContainsKey(bvh.Name))
+        if (bodyData.bodySpec.ContainsKey(bvh.Name))
         {
-            foreach (PrimitiveSpec ps in BodyData.bodySpec[bvh.Name])
+            joint.AddComponent<Rigidbody>();
+            //joint.GetComponent<Rigidbody>().useGravity = false;
+
+            foreach (PrimitiveSpec ps in bodyData.bodySpec[bvh.Name].Shapes)
             {
                 GameObject go = GameObject.CreatePrimitive(ps.Type);
                 go.transform.parent = joint.transform;
@@ -133,11 +154,32 @@ public class GenerateBody : MonoBehaviour
                 go.transform.localScale = ps.Scale;
                 go.layer = 8; // Body
             }
+
+            if (bvh.Name != "Hips")
+            {
+                joint.AddComponent<ConfigurableJoint>();
+                ConfigurableJoint cj = joint.GetComponent<ConfigurableJoint>();
+                cj.connectedBody = parent.GetComponent<Rigidbody>();
+                cj.xMotion = ConfigurableJointMotion.Locked;
+                cj.yMotion = ConfigurableJointMotion.Locked;
+                cj.zMotion = ConfigurableJointMotion.Locked;
+                cj.anchor = bodyData.bodySpec[bvh.Name].JointParameters.Anchor;
+
+                /*
+                cj.angularXMotion = ConfigurableJointMotion.Limited;
+                cj.angularYMotion = ConfigurableJointMotion.Limited;
+                cj.angularZMotion = ConfigurableJointMotion.Limited;
+                cj.lowAngularXLimit = new SoftJointLimit { limit = -20f };
+                cj.highAngularXLimit = new SoftJointLimit { limit = 20f };
+                cj.angularYLimit = new SoftJointLimit { limit = 20f };
+                cj.angularZLimit = new SoftJointLimit { limit = 20f };
+                */
+            }
         }
 
         foreach (var child in bvh.Children)
         {
-            Generate(joint.transform, child, addToJoints);
+            GenerateElement(joint.transform, child, addToJoints);
         }
     }
 }
