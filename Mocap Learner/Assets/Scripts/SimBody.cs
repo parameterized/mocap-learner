@@ -8,28 +8,41 @@ namespace MocapLearner
     {
         public BVHData BVHData { get; set; }
         public BodyData BodyData { get; set; }
-
+        public List<BodyPart> BodyParts { get; set; } = new List<BodyPart>();
         public Material Material { get; set; }
 
-        public List<BodyPart> BodyParts { get; set; } = new List<BodyPart>();
+        private BVHLimits bvhLimits;
 
         public SimBody(BVHData bvhData, BodyData bodyData)
         {
             BVHData = bvhData;
             BodyData = bodyData;
+            bvhLimits = new BVHLimits(bvhData);
+            //bvhLimits.FitAnimation();
+            bvhLimits.ExpandToAnimation(false);
         }
 
         public void Generate(Transform parent)
         {
-            GenerateElement(parent, BVHData.Skeletons[0]);
+            GenerateElements(parent, BVHData.Skeletons[0]);
             Unparent();
         }
 
-        private void GenerateElement(Transform parent, BVHElement bvh)
+        private void GenerateElements(Transform parent, BVHElement bvh)
         {
             GameObject bodyPartGO = new GameObject() { name = bvh.Name };
             bodyPartGO.transform.parent = parent;
             bodyPartGO.transform.localPosition = bvh.Offset / 10f;
+
+            BVHElementLimit bvhLimit = bvhLimits.Limits[bvh.Name];
+            float meanXLimit = (bvhLimit.AngularXLow + bvhLimit.AngularXHigh) / 2f;
+            float meanYLimit = (bvhLimit.AngularYLow + bvhLimit.AngularYHigh) / 2f;
+            float meanZLimit = (bvhLimit.AngularZLow + bvhLimit.AngularZHigh) / 2f;
+            bodyPartGO.transform.localRotation = Quaternion.identity;
+            bodyPartGO.transform.localRotation *= Quaternion.AngleAxis(meanXLimit, Vector3.right);
+            bodyPartGO.transform.localRotation *= Quaternion.AngleAxis(meanYLimit, Vector3.up);
+            bodyPartGO.transform.localRotation *= Quaternion.AngleAxis(meanZLimit, Vector3.forward);
+
             bodyPartGO.AddComponent<Rigidbody>();
             //bodyPartGO.GetComponent<Rigidbody>().useGravity = false;
             BodyPart bodyPart = new BodyPart(bodyPartGO, bvh);
@@ -64,16 +77,16 @@ namespace MocapLearner
                     cj.angularXMotion = ConfigurableJointMotion.Limited;
                     cj.angularYMotion = ConfigurableJointMotion.Limited;
                     cj.angularZMotion = ConfigurableJointMotion.Limited;
-                    cj.lowAngularXLimit = new SoftJointLimit { limit = -50f };
-                    cj.highAngularXLimit = new SoftJointLimit { limit = 50f };
-                    cj.angularYLimit = new SoftJointLimit { limit = 50f };
-                    cj.angularZLimit = new SoftJointLimit { limit = 50f };
+                    cj.lowAngularXLimit = new SoftJointLimit { limit = bvhLimit.AngularXLow - meanXLimit };
+                    cj.highAngularXLimit = new SoftJointLimit { limit = bvhLimit.AngularXHigh - meanXLimit };
+                    cj.angularYLimit = new SoftJointLimit { limit = bvhLimit.AngularYHigh - meanYLimit };
+                    cj.angularZLimit = new SoftJointLimit { limit = bvhLimit.AngularZHigh - meanZLimit };
                 }
             }
 
-            foreach (var child in bvh.Children)
+            foreach (BVHElement child in bvh.Children)
             {
-                GenerateElement(bodyPart.GameObject.transform, child);
+                GenerateElements(bodyPart.GameObject.transform, child);
             }
         }
 

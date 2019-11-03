@@ -7,10 +7,8 @@ namespace MocapLearner
     {
         public BVHData BVHData { get; set; }
         public BodyData BodyData { get; set; }
-
-        public Material Material { get; set; }
-
         public List<BodyPart> BodyParts { get; set; } = new List<BodyPart>();
+        public Material Material { get; set; }
 
         public RefBody(BVHData bvhData, BodyData bodyData)
         {
@@ -20,10 +18,10 @@ namespace MocapLearner
 
         public void Generate(Transform parent)
         {
-            GenerateElement(parent, BVHData.Skeletons[0]);
+            GenerateElements(parent, BVHData.Skeletons[0]);
         }
 
-        private void GenerateElement(Transform parent, BVHElement bvh)
+        private void GenerateElements(Transform parent, BVHElement bvh)
         {
             GameObject bodyPartGO = new GameObject() { name = bvh.Name };
             bodyPartGO.transform.parent = parent;
@@ -49,9 +47,9 @@ namespace MocapLearner
                 }
             }
 
-            foreach (var child in bvh.Children)
+            foreach (BVHElement child in bvh.Children)
             {
-                GenerateElement(bodyPart.GameObject.transform, child);
+                GenerateElements(bodyPart.GameObject.transform, child);
             }
         }
 

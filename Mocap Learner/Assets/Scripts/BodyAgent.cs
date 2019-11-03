@@ -41,6 +41,7 @@ public class BodyAgent : Agent
         if (simMaterial) {
             simOriginSphere.GetComponent<Renderer>().material = simMaterial;
         }
+        simOriginSphere.GetComponent<Collider>().enabled = false;
 
         simBody.Material = simMaterial;
         simBody.Generate(simBodyGO.transform);
@@ -59,6 +60,7 @@ public class BodyAgent : Agent
         if (refMaterial) {
             refOriginSphere.GetComponent<Renderer>().material = refMaterial;
         }
+        refOriginSphere.GetComponent<Collider>().enabled = false;
 
         refBody.Material = refMaterial;
         refBody.Generate(refBodyGO.transform);
@@ -73,10 +75,10 @@ public class BodyAgent : Agent
         }
 
         refBody.SetBodyFromAnimation(timer);
-        simBody.BodyParts[0].GameObject.GetComponent<Rigidbody>().velocity = velocity;
+        //simBody.BodyParts[0].GameObject.GetComponent<Rigidbody>().velocity = velocity;
 
         Vector3 p = simBody.BodyParts[0].GameObject.transform.localPosition;
-        simBody.BodyParts[0].GameObject.transform.localPosition = new Vector3(p.x, refBody.BodyParts[0].GameObject.transform.localPosition.y, p.z);
+        //simBody.BodyParts[0].GameObject.transform.localPosition = new Vector3(p.x, refBody.BodyParts[0].GameObject.transform.localPosition.y, p.z);
     }
 
     public override void AgentReset()
